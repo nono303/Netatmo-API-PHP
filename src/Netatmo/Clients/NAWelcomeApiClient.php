@@ -33,6 +33,20 @@ class NAWelcomeApiClient extends NAApiClient
     /*
     * @type PRIVATE API
     * @param string $home_id
+    * @param integer size (optional): number of events requested per home
+    * @return NAResponseHandler
+    * @brief Method use to retrieve status for the given home
+    */
+    public function getStatus($home_id = NULL)
+    {
+        if(!is_null($home_id)) $params['home_id'] = $home_id;
+
+        return new NAResponseHandler($this->api('homestatus', $params));
+    }
+
+    /*
+    * @type PRIVATE API
+    * @param string $home_id
     * @param string $person_id
     * @param integer $offset (optional): number of events you want to retrieve further than the last event of the given person. Default 0.
     * @return NAResponseHandler
@@ -110,7 +124,7 @@ class NAWelcomeApiClient extends NAApiClient
     /**
     * @brief drop webhook notifications for the current user
     */
-    public function dropWebhook()
+    public function dropWebhook($app_type)
     {
         parent::dropWebhook("app_camera");
     }
