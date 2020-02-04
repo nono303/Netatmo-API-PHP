@@ -201,6 +201,7 @@ class NAApiClient
         CURLOPT_USERAGENT      => 'netatmoclient',
         CURLOPT_SSL_VERIFYPEER => TRUE,
         CURLOPT_HTTPHEADER     => array("Accept: application/json"),
+		CURLOPT_CAINFO		   => "./netatmo-chain_pem.crt",
     );
 
 
