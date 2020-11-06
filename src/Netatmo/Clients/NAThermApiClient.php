@@ -207,7 +207,7 @@ class NAThermApiClient extends NAApiClient
     * @brief Method used to retrieve specifig measures of the given weather station
     */
 
-    public function getMeasure($device_id, $module_id = NULL, $scale, $type, $start = NULL, $end = NULL, $limit = NULL, $optimize = NULL, $realtime = NULL)
+    public function getMeasure($device_id, $module_id = NULL, $scale = NULL, $type = NULL, $start = NULL, $end = NULL, $limit = NULL, $optimize = NULL, $realtime = NULL)
     {
         $params = array('device_id' => $device_id,
                         'scale' => $scale,
