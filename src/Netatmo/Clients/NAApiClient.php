@@ -254,6 +254,8 @@ class NAApiClient
             }
         }
         $opts[CURLOPT_URL] = $path;
+		if($this->conf["debug"]["curl_get"])
+			echo "[curl_get] ".$path.PHP_EOL;
         // Disable the 'Expect: 100-continue' behaviour. This causes CURL to wait
         // for 2 seconds if the server does not support this header.
         if (isset($opts[CURLOPT_HTTPHEADER]))
@@ -271,7 +273,6 @@ class NAApiClient
         }
         curl_setopt_array($ch, $opts);
         $result = curl_exec($ch);
-
 
         $errno = curl_errno($ch);
         // CURLE_SSL_CACERT || CURLE_SSL_CACERT_BADFILE
@@ -314,6 +315,8 @@ class NAApiClient
                 $matches = array("", 400, "bad request");
             }
             $decode = json_decode($body, TRUE);
+			if($this->conf["debug"]["curl_error"])
+				echo "[curl_error] ".$body.PHP_EOL;
             if(!$decode)
             {
                 throw new NAApiErrorType($matches[1], $matches[2], null);
