@@ -201,7 +201,7 @@ class NAApiClient
         CURLOPT_USERAGENT      => 'netatmoclient',
         CURLOPT_SSL_VERIFYPEER => TRUE,
         CURLOPT_HTTPHEADER     => array("Accept: application/json"),
-		CURLOPT_CAINFO		   => "./netatmo-chain_pem.crt",
+		// CURLOPT_CAINFO		   => "./netatmo-chain_pem.crt",
     );
 
 
@@ -275,13 +275,6 @@ class NAApiClient
         $result = curl_exec($ch);
 
         $errno = curl_errno($ch);
-        // CURLE_SSL_CACERT || CURLE_SSL_CACERT_BADFILE
-        if ($errno == 60 || $errno == 77)
-        {
-            echo "WARNING ! SSL_VERIFICATION has been disabled since ssl error retrieved. Please check your certificate http://curl.haxx.se/docs/sslcerts.html\n";
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, FALSE);
-            $result = curl_exec($ch);
-        }
 
         if ($result === FALSE)
         {
