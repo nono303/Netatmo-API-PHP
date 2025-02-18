@@ -31,6 +31,8 @@ class NAApiClient
     protected $refresh_token;
     protected $access_token;
     protected $expires_at;
+	protected $ch;
+	
     /**
    * Returns a persistent variable.
    *
@@ -202,6 +204,7 @@ class NAApiClient
         CURLOPT_SSL_VERIFYPEER => TRUE,
         CURLOPT_HTTPHEADER     => array("Accept: application/json"),
 		// CURLOPT_CAINFO		   => "./netatmo-chain_pem.crt",
+		CURLOPT_IPRESOLVE		=> CURL_IPRESOLVE_V4,
     );
 
 
@@ -217,103 +220,78 @@ class NAApiClient
     *   (optional) The HTTP method (default 'GET').
     * @param $params
     *   (optional The GET/POST parameters.
-    * @param $ch
-    *   (optional) An initialized curl handle
     *
     * @return
     *   The json_decoded result or NAClientException if pb happend
     */
     public function makeRequest($path, $method = 'GET', $params = array())
     {
-        $ch = curl_init();
+        if(!$this->ch)
+			$this->ch = curl_init();
         $opts = self::$CURL_OPTS;
-        if ($params)
-        {
-            if(isset($params['access_token']))
-            {
+        if ($params)        {
+            if(isset($params['access_token'])) {
                 $opts[CURLOPT_HTTPHEADER][] = 'Authorization: Bearer ' . $params['access_token'];
                 unset($params['access_token']);
             }
 
-            switch ($method)
-            {
+            switch ($method)            {
                 case 'GET':
                     $path .= '?' . http_build_query($params, '', '&');
                 break;
                 // Method override as we always do a POST.
                 default:
-                    if ($this->getVariable('file_upload_support'))
-                    {
+                    if ($this->getVariable('file_upload_support')) {
                         $opts[CURLOPT_POSTFIELDS] = $params;
-                    }
-                    else
-                    {
+                    } else {
                         $opts[CURLOPT_POSTFIELDS] = http_build_query($params, '', '&');
+						$opts[CURLOPT_HTTPHEADER] = ["Content-Type: application/x-www-form-urlencoded;charset=UTF-8"];
                     }
                 break;
             }
         }
         $opts[CURLOPT_URL] = $path;
-		if($this->conf["debug"]["curl_get"])
-			echo "[curl_get] ".$path.PHP_EOL;
         // Disable the 'Expect: 100-continue' behaviour. This causes CURL to wait
         // for 2 seconds if the server does not support this header.
-        if (isset($opts[CURLOPT_HTTPHEADER]))
-        {
+        if (isset($opts[CURLOPT_HTTPHEADER])) {
             $existing_headers = $opts[CURLOPT_HTTPHEADER];
             $existing_headers[] = 'Expect:';
             $ip = $this->getVariable("ip");
             if($ip)
                 $existing_headers[] = 'CLIENT_IP: '.$ip;
             $opts[CURLOPT_HTTPHEADER] = $existing_headers;
-        }
-        else
-        {
+        } else {
             $opts[CURLOPT_HTTPHEADER] = array('Expect:');
         }
-        curl_setopt_array($ch, $opts);
-        $result = curl_exec($ch);
-
-        $errno = curl_errno($ch);
-
-        if ($result === FALSE)
-        {
-            $e = new NACurlErrorType(curl_errno($ch), curl_error($ch));
-            curl_close($ch);
-            throw $e;
-        }
-        curl_close($ch);
-
+		curl_setopt_array($this->ch, $opts);
+		
+		global $debugfunction;
+		$debugfunction = [];
+		curl_setopt($this->ch, CURLOPT_DEBUGFUNCTION,
+		static function($ch, int $type, string $data/*, $size, $debugfunction*/): void {
+			global $debugfunction;
+			if($type < 5)
+				$debugfunction[] = /*$type." ".*/trim($data);
+		});
+		// curl_setopt($this->ch,CURLOPT_VERBOSE, true);
+        $errno = curl_errno($this->ch);
+        if (($result = curl_exec($this->ch)) === FALSE)
+            throw new NACurlErrorType(curl_errno($this->ch), curl_error($this->ch));
         // Split the HTTP response into header and body.
         list($headers, $body) = explode("\r\n\r\n", $result);
         $headers = explode("\r\n", $headers);
-        //Only 2XX response are considered as a success
-        if(strpos($headers[0], 'HTTP/1.1 2') !== FALSE)
-        {
-            $decode = json_decode($body, TRUE);
-            if(!$decode)
-            {
-                if (preg_match('/^HTTP\/1.1 ([0-9]{3,3}) (.*)$/', $headers[0], $matches))
-                {
-                    throw new NAJsonErrorType($matches[1], $matches[2]);
-                }
-                else throw new NAJsonErrorType(200, "OK");
-            }
+		$retstring = explode(" ",$headers[0]);
+		$retcod = $retstring[1];
+		// decode body as json
+		if(!($decode = json_decode($body, TRUE))){
+			file_put_contents("netatmo_curl.log","--------------------------------- ".date("Y-m-d H:i:s").PHP_EOL.implode(PHP_EOL."\t",$debugfunction).PHP_EOL,FILE_APPEND);
+			throw new NAJsonErrorType($retcod[1], $retcod[2] ?: "");
+		}
+		//Only 2XX response are considered as a success
+        if($retcod == "200") {
             return $decode;
-        }
-        else
-        {
-            if (!preg_match('/^HTTP\/1.1 ([0-9]{3,3}) (.*)$/', $headers[0], $matches))
-            {
-                $matches = array("", 400, "bad request");
-            }
-            $decode = json_decode($body, TRUE);
-			if($this->conf["debug"]["curl_error"])
-				echo "[curl_error] ".$body.PHP_EOL;
-            if(!$decode)
-            {
-                throw new NAApiErrorType($matches[1], $matches[2], null);
-            }
+        } else {
+			file_put_contents("netatmo_curl.log","--------------------------------- ".date("Y-m-d H:i:s").PHP_EOL.implode(PHP_EOL."\t",$debugfunction).PHP_EOL,FILE_APPEND);
             throw new NAApiErrorType($matches[1], $matches[2], $decode);
         }
     }
