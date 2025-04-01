@@ -273,10 +273,12 @@ class NAApiClient
 			if($type < 5)
 				$debugfunction[] = /*$type." ".*/trim($data);
 		});
-		// curl_setopt($this->ch,CURLOPT_VERBOSE, true);
+		curl_setopt($this->ch,CURLOPT_VERBOSE, true);
         $errno = curl_errno($this->ch);
-        if (($result = curl_exec($this->ch)) === FALSE)
+        if (($result = curl_exec($this->ch)) === FALSE){
+			$this->fileCurlDebug($result, $debugfunction);
             throw new NACurlErrorType(curl_errno($this->ch), curl_error($this->ch));
+		}
         // Split the HTTP response into header and body.
         list($headers, $body) = explode("\r\n\r\n", $result);
         $headers = explode("\r\n", $headers);
@@ -284,17 +286,33 @@ class NAApiClient
 		$retcod = $retstring[1];
 		// decode body as json
 		if(!($decode = json_decode($body, TRUE))){
-			file_put_contents("netatmo_curl.log","--------------------------------- ".date("Y-m-d H:i:s").PHP_EOL.implode(PHP_EOL."\t",$debugfunction).PHP_EOL,FILE_APPEND);
+			$this->fileCurlDebug($result, $debugfunction);
 			throw new NAJsonErrorType($retcod[1], $retcod[2] ?: "");
 		}
 		//Only 2XX response are considered as a success
         if($retcod == "200") {
             return $decode;
         } else {
-			file_put_contents("netatmo_curl.log","--------------------------------- ".date("Y-m-d H:i:s").PHP_EOL.implode(PHP_EOL."\t",$debugfunction).PHP_EOL,FILE_APPEND);
+			$this->fileCurlDebug($result, $debugfunction);
             throw new NAApiErrorType($matches[1], $matches[2], $decode);
         }
     }
+	
+	private function fileCurlDebug($result, $debugfunction){
+		$message = "\t".implode(PHP_EOL."\t",$debugfunction);
+		if($this->conf['debug']['curl_error_log'])
+			file_put_contents($this->conf['debug']['curl_error_log'],
+				"--------------------------------- ".
+				date("Y-m-d H:i:s").PHP_EOL.
+				$message.PHP_EOL
+			,FILE_APPEND);
+		echo $message;
+		include_once "nono/Common.php";
+		\Common::postMattermost("https://mm.nono303.net/hooks/u48y3n53g7r3td9zmoeb4njawa","Netatmo cURL error".($this->conf['debug']['curl_error_log'] ? " `".realpath($this->conf['debug']['curl_error_log'])."`" : "").PHP_EOL."```".$message."```","juno106","juno106","https://mm.nono303.net/icons/netatmo.png") ?
+			$msg = "  > Mattermost send".PHP_EOL :
+			$msg = "  ! Mattermost not send".PHP_EOL;
+		echo $msg;
+	}
 
     /**
     * Retrieve an access token following the best grant to recover it (order id : code, refresh_token, password)
