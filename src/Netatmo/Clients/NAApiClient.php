@@ -299,19 +299,23 @@ class NAApiClient
     }
 	
 	private function fileCurlDebug($result, $debugfunction){
+		// stdout
 		$message = "\t".implode(PHP_EOL."\t",$debugfunction);
+		echo $message;
+		// file
 		if($this->conf['debug']['curl_error_log'])
 			file_put_contents($this->conf['debug']['curl_error_log'],
 				"--------------------------------- ".
 				date("Y-m-d H:i:s").PHP_EOL.
 				$message.PHP_EOL
 			,FILE_APPEND);
-		echo $message;
+		// mattermost
+		if(is_array($result) && $result['code'] == 500)
+			$message = $result['code'].": ".$result['body'];
 		include_once "nono/Common.php";
-		\Common::postMattermost("https://mm.nono303.net/hooks/u48y3n53g7r3td9zmoeb4njawa","Netatmo cURL error".($this->conf['debug']['curl_error_log'] ? " `".realpath($this->conf['debug']['curl_error_log'])."`" : "").PHP_EOL."```".$message."```","juno106","juno106","https://mm.nono303.net/icons/netatmo.png") ?
-			$msg = "  > Mattermost send".PHP_EOL :
-			$msg = "  ! Mattermost not send".PHP_EOL;
-		echo $msg;
+		echo \Common::postMattermost("https://mm.nono303.net/hooks/u48y3n53g7r3td9zmoeb4njawa","Netatmo cURL error".($this->conf['debug']['curl_error_log'] ? " `".realpath($this->conf['debug']['curl_error_log'])."`" : "").PHP_EOL."```".$message."```","juno106","juno106","https://mm.nono303.net/icons/netatmo.png") ?
+			"  > Mattermost send".PHP_EOL :
+			"  ! Mattermost not send".PHP_EOL;
 	}
 
     /**
