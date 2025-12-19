@@ -287,7 +287,7 @@ class NAApiClient
 		// decode body as json
 		if(!($decode = json_decode($body, TRUE))){
 			$this->fileCurlDebug($result, $debugfunction);
-			throw new NAJsonErrorType($retcod[1], $retcod[2] ?: "");
+			throw new \Netatmo\Exceptions\NAJsonErrorType($retcod[1], $retcod[2] ?: "");
 		}
 		//Only 2XX response are considered as a success
         if($retcod == "200") {
