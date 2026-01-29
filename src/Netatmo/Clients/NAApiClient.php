@@ -32,7 +32,7 @@ class NAApiClient
     protected $access_token;
     protected $expires_at;
 	protected $ch;
-	
+
     /**
    * Returns a persistent variable.
    *
@@ -264,7 +264,7 @@ class NAApiClient
             $opts[CURLOPT_HTTPHEADER] = array('Expect:');
         }
 		curl_setopt_array($this->ch, $opts);
-		
+
 		global $debugfunction;
 		$debugfunction = [];
 		curl_setopt($this->ch, CURLOPT_DEBUGFUNCTION,
@@ -279,11 +279,7 @@ class NAApiClient
 			$this->fileCurlDebug($result, $debugfunction);
             throw new NACurlErrorType(curl_errno($this->ch), curl_error($this->ch));
 		}
-        // Split the HTTP response into header and body.
-        list($headers, $body) = explode("\r\n\r\n", $result);
-        $headers = explode("\r\n", $headers);
-		$retstring = explode(" ",$headers[0]);
-		$retcod = $retstring[1];
+		$retcod = $this->splitHttpResult($result, $body);
 		// decode body as json
 		if(!($decode = json_decode($body, TRUE))){
 			$this->fileCurlDebug($result, $debugfunction);
@@ -297,11 +293,18 @@ class NAApiClient
             throw new NAApiErrorType($matches[1], $matches[2], $decode);
         }
     }
-	
+
+	 // Split the HTTP response into header and body.
+	private function splitHttpResult($result, &$body){
+		list($headers, $body) = explode("\r\n\r\n", $result);
+        $headers = explode("\r\n", $headers);
+		$retstring = explode(" ",$headers[0]);
+		return $retstring[1];
+	}
+
 	private function fileCurlDebug($result, $debugfunction){
 		// stdout
 		$message = "\t".implode(PHP_EOL."\t",$debugfunction);
-		echo $message;
 		// file
 		if($this->conf['debug']['curl_error_log'])
 			file_put_contents($this->conf['debug']['curl_error_log'],
@@ -310,10 +313,21 @@ class NAApiClient
 				$message.PHP_EOL
 			,FILE_APPEND);
 		// mattermost
-		if(is_array($result) && $result['code'] == 500)
-			$message = $result['code'].": ".$result['body'];
+		if(in_array(($retcod = $this->splitHttpResult($result, $body)),["500","429"])){
+			if(is_array($jsonb = json_decode($body,true)) && $jsonb["error"] && $jsonb["error"]["message"])
+				$body = $jsonb["error"]["message"];
+			$message = "http **".$retcod."** `".$body."`";
+		} else {
+			$message = PHP_EOL."```".$message."```";
+		}
 		include_once "nono/Common.php";
-		echo \Common::postMattermost("https://mm.nono303.net/hooks/u48y3n53g7r3td9zmoeb4njawa","Netatmo cURL error".($this->conf['debug']['curl_error_log'] ? " `".realpath($this->conf['debug']['curl_error_log'])."`" : "").PHP_EOL."```".$message."```","juno106","juno106","https://mm.nono303.net/icons/netatmo.png") ?
+		echo \Common::postMattermost(
+			"https://mm.nono303.net/hooks/u48y3n53g7r3td9zmoeb4njawa",
+			":warning: Netatmo".$message.PHP_EOL."_:fast_forward: `".realpath($this->conf['debug']['curl_error_log'])."`_",
+			"juno106",
+			"netatmo",
+			"https://mm.nono303.net/icons/netatmo.png"
+		) ?
 			"  > Mattermost send".PHP_EOL :
 			"  ! Mattermost not send".PHP_EOL;
 	}
