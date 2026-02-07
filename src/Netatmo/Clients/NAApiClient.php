@@ -196,17 +196,20 @@ class NAApiClient
    * Default options for cURL.
    */
     public static $CURL_OPTS = array(
-        CURLOPT_CONNECTTIMEOUT => 10,
-        CURLOPT_RETURNTRANSFER => TRUE,
-        CURLOPT_HEADER         => TRUE,
-        CURLOPT_TIMEOUT        => 60,
-        CURLOPT_USERAGENT      => 'netatmoclient',
-        CURLOPT_SSL_VERIFYPEER => TRUE,
-        CURLOPT_HTTPHEADER     => array("Accept: application/json"),
-		// CURLOPT_CAINFO		   => "./netatmo-chain_pem.crt",
+		CURLOPT_DNS_SERVERS		=> '192.168.30.43,1.1.1.1,1.0.0.1,8.8.8.8,8.8.4.4',
+        CURLOPT_CONNECTTIMEOUT	=> 10,
+        CURLOPT_RETURNTRANSFER	=> true,
+        CURLOPT_HEADER			=> true,
+        CURLOPT_TIMEOUT			=> 60,
+        CURLOPT_USERAGENT		=> 'netatmoclient',
+        CURLOPT_SSL_VERIFYPEER	=> true,
+        CURLOPT_HTTPHEADER		=> array("Accept: application/json"),
+		// CURLOPT_CAINFO		=> "./netatmo-chain_pem.crt",
 		CURLOPT_IPRESOLVE		=> CURL_IPRESOLVE_V4,
+		CURLOPT_HTTP_VERSION	=> CURL_HTTP_VERSION_2_0,
+		CURLOPT_FAILONERROR		=> 0,	// https://stackoverflow.com/a/71613094
+		CURLOPT_ENCODING		=> "gzip, deflate, br, zstd",
     );
-
 
     /**
     * Makes an HTTP request.
