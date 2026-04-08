@@ -196,7 +196,7 @@ class NAApiClient
    * Default options for cURL.
    */
     public static $CURL_OPTS = array(
-		CURLOPT_DNS_SERVERS		=> '192.168.30.43,1.1.1.1,1.0.0.1,8.8.8.8,8.8.4.4',
+		CURLOPT_DNS_SERVERS		=> '1.1.1.1,1.0.0.1,8.8.8.8,8.8.4.4',
         CURLOPT_CONNECTTIMEOUT	=> 10,
         CURLOPT_RETURNTRANSFER	=> true,
         CURLOPT_HEADER			=> true,
@@ -279,20 +279,20 @@ class NAApiClient
 		curl_setopt($this->ch,CURLOPT_VERBOSE, true);
         $errno = curl_errno($this->ch);
         if (($result = curl_exec($this->ch)) === FALSE){
-			$this->fileCurlDebug($result, $debugfunction);
+			$this->fileCurlDebug($result, $debugfunction, $errno);
             throw new NACurlErrorType(curl_errno($this->ch), curl_error($this->ch));
 		}
 		$retcod = $this->splitHttpResult($result, $body);
 		// decode body as json
 		if(!($decode = json_decode($body, TRUE))){
-			$this->fileCurlDebug($result, $debugfunction);
+			$this->fileCurlDebug($result, $debugfunction, $errno);
 			throw new \Netatmo\Exceptions\NAJsonErrorType($retcod[1], $retcod[2] ?: "");
 		}
 		//Only 2XX response are considered as a success
         if($retcod == "200") {
             return $decode;
         } else {
-			$this->fileCurlDebug($result, $debugfunction);
+			$this->fileCurlDebug($result, $debugfunction, $errno);
             throw new NAApiErrorType($matches[1], $matches[2], $decode);
         }
     }
@@ -305,7 +305,7 @@ class NAApiClient
 		return $retstring[1];
 	}
 
-	private function fileCurlDebug($result, $debugfunction){
+	private function fileCurlDebug($result, $debugfunction, $errno){
 		// stdout
 		$message = "\t".implode(PHP_EOL."\t",$debugfunction);
 		// file
@@ -316,17 +316,17 @@ class NAApiClient
 				$message.PHP_EOL
 			,FILE_APPEND);
 		// mattermost
-		if(in_array(($retcod = $this->splitHttpResult($result, $body)),["500","429"])){
+		if(in_array(($retcod = $this->splitHttpResult($result, $body)),["500","503","429"])){
 			if(is_array($jsonb = json_decode($body,true)) && $jsonb["error"] && $jsonb["error"]["message"])
 				$body = $jsonb["error"]["message"];
 			$message = "http **".$retcod."** `".$body."`";
 		} else {
-			$message = PHP_EOL."```".$message."```";
+			$message = $errno.PHP_EOL."```".$message."```";
 		}
 		include_once "nono/Common.php";
 		echo \Common::postMattermost(
 			"https://mm.nono303.net/hooks/u48y3n53g7r3td9zmoeb4njawa",
-			":warning: Netatmo".$message.PHP_EOL."_:fast_forward: `".realpath($this->conf['debug']['curl_error_log'])."`_",
+			":warning: Netatmo ".$message.PHP_EOL."_:fast_forward: `".realpath($this->conf['debug']['curl_error_log'])."`_",
 			"juno106",
 			"netatmo",
 			"https://mm.nono303.net/icons/netatmo.png"
