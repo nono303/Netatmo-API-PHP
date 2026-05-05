@@ -286,7 +286,7 @@ class NAApiClient
 		// decode body as json
 		if(!($decode = json_decode($body, TRUE))){
 			$this->fileCurlDebug($result, $debugfunction, $errno);
-			throw new \Netatmo\Exceptions\NAJsonErrorType($retcod[1], $retcod[2] ?: "");
+			throw new NAJsonErrorType($retcod[1], $retcod[2] ?: "");
 		}
 		//Only 2XX response are considered as a success
         if($retcod == "200") {
@@ -321,7 +321,7 @@ class NAApiClient
 				$body = $jsonb["error"]["message"];
 			$message = "http **".$retcod."** `".$body."`";
 		} else {
-			$message = $errno.PHP_EOL."```".$message."```";
+			$message = $errno.PHP_EOL."```".PHP_EOL.$message.PHP_EOL."```";
 		}
 		include_once "nono/Common.php";
 		echo \Common::postMattermost(
