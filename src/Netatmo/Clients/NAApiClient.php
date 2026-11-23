@@ -323,6 +323,9 @@ class NAApiClient
 		} else {
 			$message = $errno.PHP_EOL."```".PHP_EOL.$message.PHP_EOL."```";
 		}
+		// 2026-10-17: too much 503 : disabled
+		if($retcod == "503")
+			return;
 		include_once "nono/Common.php";
 		echo \Common::postMattermost(
 			"https://mm.nono303.net/hooks/u48y3n53g7r3td9zmoeb4njawa",
